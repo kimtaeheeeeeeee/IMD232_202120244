@@ -1,88 +1,115 @@
-let mover;
+let pendulumA;
 let gravity;
-let mVec;
-let pMVec;
 
 function setup() {
-  setCanvasContainer('canvas', 1, 1, true);
+  setCanvasContainer('canvas', 2, 1, true);
 
-  mover = new Mover(width / 2, height / 2, 100);
+  pendulumA = new Pendulum(width / 2, 10, height / 3, (TAU / 360) * 45, 25);
   gravity = createVector(0, 0.5);
-
-  mVec = createVector();
-  pMVec = createVector();
 
   background(255);
 }
 
 function draw() {
-  const force = p5.Vector.mult(gravity, mover.mass);
-
+  pendulumA.applyGravity(gravity);
+  pendulumA.update();
   background(255);
+  pendulumA.display();
 }
 
-function mouseMoved() {}
+function mouseMoved() {
+  pendulumA.mouseMoved(mouseX, mouseY);
+}
 
-function mousePressed() {}
+function mousePressed() {
+  pendulumA.mousePressed(mouseX, mouseY);
+}
 
-function mouseDragged() {}
+function mouseDragged() {
+  pendulumA.mouseDragged(mouseX, mouseY);
+}
 
 function mouseReleased() {
-  pMVec.set(pmouseX, pmouseY);
-  mVec.set(mouseX, mouseY);
-
-  mover.applyForce(throwingForce);
+  pendulumA.mouseReleased();
 }
 
-class Mover {
-  constructor(x, y, mass) {
-    this.pos;
-    this.vel;
-    this.acc;
-    this.mass;
-    this.rad;
-    this.isHover;
-    this.isDragging;
-    this.draggingOffset;
+class Pendulum {
+  constructor(x, y, length, angle, rad) {
+    this.angle = angle;
+    this.angleVel = 0;
+    this.angleAcc = 0;
+    this.pos = createVector(x, y);
+    this.length = length;
+    this.ballPos = createVector(x, y);
+    this.ballPos.add(
+      cos(this.angle) * this.length,
+      sin(this.angle) * this.length
+    );
+    this.rad = rad;
+    this.draggingOffset = createVector();
+    this.isHover = false;
+    this.isDragging = false;
   }
 
-  applyForce(force) {}
+  applyGravity(gravity) {
+    this.angleAcc =
+      (sin(this.angle - (TAU / 360) * 90) * -gravity.y) / this.length;
+  }
 
-  update() {}
-
-  edgeBounce() {
-    const bounce = -0.7;
-    if (this.pos.x < 0 + this.rad) {
-      this.pos.x = 0 + this.rad;
-      this.vel.x *= bounce;
-    } else if (this.pos.x > width - 1 - this.rad) {
-      this.pos.x = width - 1 - this.rad;
-      this.vel.x *= bounce;
+  update() {
+    if (!this.isDragging) {
+      this.angleVel += this.angleAcc;
+      this.angle += this.angleVel;
+      this.angleVel *= 0.998;
     }
-    if (this.pos.y > height - 1 - this.rad) {
-      this.pos.y = height - 1 - this.rad;
-      this.vel.y *= bounce;
-    }
+    this.ballPos.set(
+      cos(this.angle) * this.length + this.pos.x,
+      sin(this.angle) * this.length + this.pos.y
+    );
   }
 
   display() {
     noStroke();
-    fill(0);
-    ellipse(this.pos.x, this.pos.y, 2 * this.rad);
+    fill(127);
+    ellipse(this.pos.x, this.pos.y, 20);
+    if (this.isDragging) {
+      fill('#ff0000');
+    } else if (this.isHover) {
+      fill(127);
+    } else {
+      fill(191);
+    }
+    ellipse(this.ballPos.x, this.ballPos.y, 2 * this.rad);
+    stroke(0);
+    noFill();
+    line(this.pos.x, this.pos.y, this.ballPos.x, this.ballPos.y);
   }
 
   mouseMoved(mX, mY) {
     this.isHover =
-      (this.pos.x - mX) ** 2 + (this.pos.y - mY) ** 2 <= this.rad ** 2;
+      (this.ballPos.x - mX) ** 2 + (this.ballPos.y - mY) ** 2 <= this.rad ** 2;
   }
 
   mousePressed(mX, mY) {
     if (this.isHover) {
+      this.isDragging = true;
+      this.angleAcc = 0;
+      this.angleVel = 0;
+      this.draggingOffset.set(mX - this.ballPos.x, mY - this.ballPos.y);
     }
   }
 
   mouseDragged(mX, mY) {
     if (this.isDragging) {
+      const ballShouldBe = createVector(
+        mX - this.draggingOffset.x,
+        mY - this.draggingOffset.y
+      );
+      const angle = atan2(
+        ballShouldBe.y - this.pos.y,
+        ballShouldBe.x - this.pos.x
+      );
+      this.angle = angle;
     }
   }
 
